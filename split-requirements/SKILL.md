@@ -120,8 +120,22 @@ Then  {可观察结果 / 断言}
 |---|---|---|---|
 | Q-001 | 高 | ... | 产品 |
 
+## 知识库写回（追溯链）
+
+| 写什么 | 路径 | 要求 |
+|---|---|---|
+| AC 清单 | `requirements/decomposition/{REQ-ID}-AC-list.yaml` | AC 编号不复用、不跳号，含优先级 / 可自动化 / 依赖 |
+| 模块注册表 | `knowledge/impact-index.yaml` → `module_registry` | 新模块 / 新功能登记 `config_path` / `test_path` / `current_version` |
+| 需求 → AC 追溯 | 同上，AC 条目带 `requirement_id: REQ-{NNN}` | 供 `design-testcases` 填入用例的 `requirement_id` 列 |
+
+- 禁止在拆分阶段新增 `changes[]` 条目——change 由规则变更产生，不是拆分产生。
+- 禁止把【待确认】AC 标为 P0 并直接移交；高优先级待确认项必须闭环。
+- 写回后执行 `python scripts/knowledge_guard.py`，存在 ERROR 时不得移交。
+
 ## 门禁
 - 高优先级待确认项未闭环 → 不进入 `design-testcases`。
+- 新模块 / 新功能未在 `module_registry` 登记 → 不进入 `design-testcases`。
+- `requirement_id` 未随 AC 一起下发 → 不得移交（否则用例追溯链断裂）。
 - 全部闭环 → 移交 `design-testcases`。
 
 ## 输出禁忌
@@ -130,3 +144,4 @@ Then  {可观察结果 / 断言}
 - 禁止把异常场景笼统写成"测试异常情况"。
 - 禁止不标优先级、不标自动化可行性。
 - 禁止编号重复或跳号。
+- 禁止在拆分阶段登记 `changes[]` 或修改 `regression_targets`。
