@@ -1,0 +1,12 @@
+{
+  "测试mysql": {
+    "type": "mysql",
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "your_username",
+    "password": "your_password",
+    "database": "your_database",
+    "charset": "utf8mb4",
+    "description": "测试 MySQL 连接配置，请根据实际环境修改。复制为本目录的 db_config.json 后使用。"
+  }
+}

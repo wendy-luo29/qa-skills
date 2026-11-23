@@ -1,0 +1,10 @@
+[project]
+name = "design-testcases"
+version = "2.0.0"
+description = "测试用例设计技能（合并版：AC 追溯 + OpenAPI/DB 规则引擎 + 验证 SQL）"
+requires-python = ">=3.10"
+dependencies = [
+    "openpyxl>=3.1.0",
+    "pymysql>=1.1.0",
+    "pyyaml>=6.0",
+]
