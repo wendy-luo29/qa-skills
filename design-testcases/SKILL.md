@@ -10,7 +10,7 @@ description: 测试用例设计（合并版）。当需求已拆成原子能力�
 - 功能拆分已完成（有 AC 编号），或已提供 OpenAPI/Swagger 文档。
 
 ## 上下游
-- 上游：`split-requirements`（功能拆分，提供 AC 编号与验收口径）；或直接提供 OpenAPI 文档。
+- 上游：`split-requirements`（功能拆分，提供 AC 编号与验收口径）；或直接提供 OpenAPI 文档。来自拆分的输入必须带 `review_record` / `review_gate`，缺失则退回 `split-requirements` 补齐需求评审。
 - 下游：`review-testcases`（多视角用例评审）。
 
 ## 输入
@@ -334,6 +334,7 @@ uv run --project $SkillDir python "$SkillDir\scripts\export_excel.py" `
 - 自动化可行性：是/否/部分，断言方式：接口返回/数据库字段/日志/事件/页面元素。
 
 ## 门禁
+- **评审溯源门禁**：AC 清单缺少 `review_record` / `review_gate`，或门禁值为 `reject` → 不得设计或导出用例，退回 `split-requirements` / `review-requirements`。
 - **知识库门禁**：如果 `knowledge/INDEX.md` 存在，Step 4 必须执行且输出摘要；直接跳到 Step 5-8 视为违规。
 - **复用门禁**：已有用例未做 Step 4.5 处置（复用/更新/废弃/新增）就直接输出 → 退回补做。
 - **影响索引门禁**：`impact-index.yaml` 里标记的 `regression_targets` 必须出现在最终清单里（复用或更新都行，不能消失）。

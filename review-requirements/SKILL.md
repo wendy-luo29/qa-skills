@@ -123,6 +123,7 @@ next_action: 回退 requirement-enrichment 补齐 R-001 ~ R-004
 - 修改内容给到可粘贴粒度：表格行、字段行、新增章节文本，而不是笼统方向。
 - 编号 R-{NNN} 一经分配不复用、不重排；闭环后只在复审记录里标 `closed`。
 - 复审时更新 front-matter 的 `gate` / `blocking_count` / `next_action`，并追加复审记录行。
+- **`gate` 是下游唯一放行依据**：`split-requirements` 只接受 `pass` / `conditional-pass` 且 `blocking_count: 0`。口头确认、聊天记录、"应该没问题"都不得写成 `pass`；没有复审记录闭环的 `conditional-pass` 必须保持 `reject`。
 
 ## 知识库写回（rules 唯一合法入口）
 
@@ -138,6 +139,7 @@ next_action: 回退 requirement-enrichment 补齐 R-001 ~ R-004
 - 写完执行 `python scripts/knowledge_guard.py`，存在 ERROR 时不得移交
 
 ## 门禁
+- 评审记录未落盘、缺 front-matter 或 `gate` 值非法 → 视为未评审，禁止进入 `split-requirements`。
 - 存在未解决的"高"级问题 → **[拒绝 Reject]**，禁止进入用例设计，请产品/后端补全文档。
 - 不存在"高"级问题 → **[有条件通过]**，产品/后端确认"中"级问题后进入 `split-requirements`。
 - 评审未通过时写入 `knowledge/rules/` → 视为违规，必须回滚。

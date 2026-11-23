@@ -202,6 +202,10 @@ description: 需求补全。当用户提供的 PRD、接口文档或业务说明
 
 ## 门禁
 
+### 本阶段出口（强制）
+- 补全完成后**唯一允许的下一步是 `review-requirements`**；禁止直接进入 `split-requirements` 或 `design-testcases`。
+- 禁止用对话里的口头结论替代评审记录；进入评审的前置是证据层三份产物已落盘。
+
 ### 模式 A
 - 待确认清单中【高】级项全部补齐 → 移交 `review-requirements`。
 - 存在未闭环【高】级项 → 停在补全阶段。

@@ -15,7 +15,22 @@ description: 需求功能拆分。当需求已评审通过，需要拆成"模块
 
 ## 输入
 - 必需：评审通过后的完整需求 / 接口文档 / 业务流程说明。
+- 必需：需求评审记录 `requirements/reviews/REQ-{NNN}-review.md`（前置门禁依据）。
 - 可选：系统架构图、模块归属表、迭代范围。
+
+## 前置门禁（不通过则禁止拆分）
+
+拆分只能由评审记录驱动，不能因为"需求已经补全了"就直接开始。进入拆分前必须：
+
+1. 读取 `requirements/reviews/REQ-{NNN}-review.md`。对话里的口头结论不算，未落盘的评审视为未评审。
+2. 校验 front-matter：
+   - `requirement_id` 与本次需求一致；
+   - `gate` 只能是 `pass` 或 `conditional-pass`，`reject` 一律拒绝拆分；
+   - `conditional-pass` 时 `blocking_count` 必须为 0，且 `next_action` 列出的高/中风险项已在复审记录中标记闭环。
+3. 文件缺失、`gate` 缺失或为 `reject` → **停止拆分**，输出【前置门禁未通过】及缺失内容，回退 `review-requirements`；若文档仍残缺，再回退 `requirement-enrichment`。
+4. 需求变更后的二次拆分必须引用最新一轮复审记录，禁止沿用旧 `gate` 值。
+
+拆分结果首部必须带【评审溯源】块，供下游判断追溯链是否完整。
 
 ## 角色
 你是一名测试架构师兼业务分析专家。任务不是写测试用例，而是把需求拆成"模块—场景—原子能力—验收口径"四层结构，让后续用例设计、自动化脚本、排期分工都有清晰依据。
@@ -107,6 +122,7 @@ Then  {可观察结果 / 断言}
 ### 第六步：输出《拆分结果》+《待确认清单》
 
 ## 输出结构
+0. 【评审溯源】`review_record` 路径 / `gate` / `review_date` / 已闭环阻塞项数——下游用例设计必须引用，缺失即视为追溯链断裂。
 1. 【功能拆分总表】
 
 | 模块 | 场景 | 原子能力 | 优先级 | 是否可自动化 | 依赖 | 待确认项 |
@@ -124,7 +140,7 @@ Then  {可观察结果 / 断言}
 
 | 写什么 | 路径 | 要求 |
 |---|---|---|
-| AC 清单 | `requirements/decomposition/{REQ-ID}-AC-list.yaml` | AC 编号不复用、不跳号，含优先级 / 可自动化 / 依赖 |
+| AC 清单 | `requirements/decomposition/{REQ-ID}-AC-list.yaml` | AC 编号不复用、不跳号，含优先级 / 可自动化 / 依赖；必须带 `review_record` / `review_date` / `review_gate` |
 | 模块注册表 | `knowledge/impact-index.yaml` → `module_registry` | 新模块 / 新功能登记 `config_path` / `test_path` / `current_version` |
 | 需求 → AC 追溯 | 同上，AC 条目带 `requirement_id: REQ-{NNN}` | 供 `design-testcases` 填入用例的 `requirement_id` 列 |
 
@@ -133,6 +149,8 @@ Then  {可观察结果 / 断言}
 - 写回后执行 `python scripts/knowledge_guard.py`，存在 ERROR 时不得移交。
 
 ## 门禁
+- 评审记录缺失、`gate` 为 `reject` 或 `blocking_count > 0` → 禁止拆分，回退 `review-requirements`。
+- 拆分结果缺少【评审溯源】块或 AC 清单未带 `review_record` → 不得移交 `design-testcases`。
 - 高优先级待确认项未闭环 → 不进入 `design-testcases`。
 - 新模块 / 新功能未在 `module_registry` 登记 → 不进入 `design-testcases`。
 - `requirement_id` 未随 AC 一起下发 → 不得移交（否则用例追溯链断裂）。

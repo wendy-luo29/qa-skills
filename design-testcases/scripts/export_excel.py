@@ -35,6 +35,16 @@ FILL_MAP = {
     "权限": "F2F2F2",
 } if HAS_OPENPYXL else {}
 
+def split_acs(value) -> list:
+    """把 "AC-01,AC-02" 这类多 AC 字符串拆成去重后的 AC 列表"""
+    raw = str(value or "").strip()
+    if not raw:
+        return ["未关联"]
+    for sep in ("，", "、", ";", "；", "/", " "):
+        raw = raw.replace(sep, ",")
+    return [ac for ac in dict.fromkeys(x.strip() for x in raw.split(",")) if ac]
+
+
 # ── 标准列顺序（合并版，共 30 列） ──────────────────────────
 # 在原 25 列基础上增加：case_id、ac、automatable、assertion_method、risk
 COLUMNS = [
@@ -177,8 +187,8 @@ def write_matrix_sheet(ws, cases: list, thin_border, ac_list: list = None):
     ac_list = ac_list or []
     grouped = {}
     for case in cases:
-        ac = str(case.get("ac", "未关联"))
-        grouped.setdefault(ac, []).append(str(case.get("case_id", "")))
+        for ac in split_acs(case.get("ac", "")):
+            grouped.setdefault(ac, []).append(str(case.get("case_id", "")))
 
     # 合并 ac_list 和实际出现的 ac
     all_acs = list(dict.fromkeys([*ac_list, *grouped.keys()]))
@@ -277,8 +287,8 @@ def write_stats_sheet(ws, cases: list, thin_border):
         api_counts[ap] = api_counts.get(ap, 0) + 1
         pr = c.get("priority", "未知")
         priority_counts[pr] = priority_counts.get(pr, 0) + 1
-        ac = c.get("ac", "未关联")
-        ac_counts[ac] = ac_counts.get(ac, 0) + 1
+        for ac in split_acs(c.get("ac", "")):
+            ac_counts[ac] = ac_counts.get(ac, 0) + 1
 
     row = 4
     ws.cell(row, 1, "用例类型分布").font = bold_font
