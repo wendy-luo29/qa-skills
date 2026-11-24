@@ -161,6 +161,11 @@ uv run --project $SkillDir python "$SkillDir\scripts\query_db_schema.py" `
 
 ### Step 5：应用 8 条规则生成用例（内核）
 
+> **写用例前必读 `references/case-template.md`（单条用例卡片模板）**。
+> 每条用例的 `title / preconditions / test_data / steps / expected_result / validation_sql` 必须按模板的
+> 三段式标题、四分区前置条件、三列表测试数据、编号步骤、四分区断言、可执行 SQL 书写。
+> 目标是让人不读脚本也能看懂并手工执行；不符合模板的用例在 Step 7 会被退回重写。
+
 基于 Step 4 读取的知识库上下文，对每个 API 字段树依次应用以下规则。详细方法见 `references/design-methods.md`。
 
 > **规则应用优先级**：知识库 confirmed 规则 > OpenAPI schema > DB 约束 > 通用规则。
@@ -254,6 +259,16 @@ uv run --project $SkillDir python "$SkillDir\scripts\query_db_schema.py" `
 
 每条用例写入工作区 `output/cases_batch_<N>.json`，JSON 数组格式。字段定义见下节。
 
+**可读性门禁（逐条对照 `references/case-template.md` 第九节自检清单）**：
+- `title` 为三段式，禁止"验证 XX 正常/成功"
+- `preconditions` 含【环境】【主数据】【夹具】【认证】四分区，主数据带真实 ID/编码
+- `test_data` 为 `字段路径 | 取值 | 依据` 三列表，参数化实例逐条列全
+- `steps` ≤ 6 步，每步都有动作 + 观察点
+- `expected_result` 含【HTTP】【包装层】【业务断言】【落库断言】，一条断言一行
+- `validation_sql` 可直接执行、带 WHERE、有目的注释、参数占位（只读接口填 `N/A（只读接口）`）
+
+任一条不满足 → 退回重写该用例，不得进入 Step 8。
+
 校验：
 ```powershell
 uv run --project $SkillDir python "$SkillDir\scripts\validate_json.py" "<工作区>\output\cases_batch_<N>.json"
@@ -287,13 +302,13 @@ uv run --project $SkillDir python "$SkillDir\scripts\export_excel.py" `
   "module": "地址管理",
   "feature": "地址搜索",
   "test_item": "有效关键字模糊搜索",
-  "title": "有效关键字搜索返回匹配结果",
-  "preconditions": "服务可用，存在测试数据",
+  "title": "suburb 关键字「上海」搜索 → 返回含该关键字的记录且 data.list 非空",
+  "preconditions": "【环境】地址服务可用；lsp_dev 库可读\n【主数据】lsp_address_suburb 存在 suburb_name 含「上海」的记录（SQL 实查）\n【夹具】无需写入，只读查询\n【认证】Bearer token 已配置",
   "db_tables": "lsp_dev.lsp_address_suburb",
-  "test_data": "{\"keyword\": \"上海\", \"limit\": 20}",
-  "steps": "1. 调用 POST /address/search 2. 校验响应",
-  "expected_result": "HTTP 200，data.list 非空，包含含'上海'的记录",
-  "validation_sql": "SELECT COUNT(*) FROM lsp_address_suburb WHERE suburb_name LIKE '%上海%'",
+  "test_data": "字段路径 | 取值 | 依据\n--- | --- | ---\nkeyword | 上海 | 等价类：有效关键字\nlimit | 20 | schema 默认上限",
+  "steps": "1. 构造请求体 {\"keyword\":\"上海\",\"limit\":20}；观察 JSON 合法\n2. POST /address/search；观察 HTTP 状态与响应体\n3. 断言 data.list 非空且每条命中关键字\n4. 执行验证 SQL；观察命中行数与接口一致",
+  "expected_result": "【HTTP】status == 200\n【包装层】code == \"200\"；success == true；data.list 非空\n【业务断言】data.list 每条 suburb_name 或 district 含「上海」\n【落库断言】无（只读接口）",
+  "validation_sql": "-- 校验库中存在匹配记录且与接口命中数一致\nSELECT COUNT(*) FROM lsp_address_suburb\nWHERE suburb_name LIKE '%上海%' OR district LIKE '%上海%';",
   "actual_result": "",
   "is_passed": "",
   "estimated_hours": "0.5",
@@ -362,6 +377,7 @@ uv run --project $SkillDir python "$SkillDir\scripts\export_excel.py" `
 
 ### 本 Skill 参考
 - `references/design-methods.md` — 等价类、边界值、结对、场景法、八层覆盖、去重裁剪
+- `references/case-template.md` — **单条用例卡片模板（★ Step 5 生成前必读）**：三段式标题、四分区前置/预期、三列表测试数据、可执行 SQL
 - `references/testcase-headers.md` — 30 列标准表头、优先级标准、自动化判定、验证 SQL 规范
 - `scripts/query_db_schema.py` — 数据库表结构查询
 

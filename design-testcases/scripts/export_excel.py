@@ -55,12 +55,12 @@ COLUMNS = [
     ("feature",          "功能",             15),
     ("test_item",        "测试项",           22),
     ("title",            "用例标题",         28),
-    ("preconditions",    "前置条件",         28),
-    ("db_tables",        "涉及到数据库表",   18),
-    ("test_data",        "测试数据",         32),
-    ("steps",            "测试步骤",         50),
-    ("expected_result",  "预期结果",         50),
-    ("validation_sql",   "验证SQL",          55),
+    ("preconditions",    "前置条件",         46),
+    ("db_tables",        "涉及到数据库表",   20),
+    ("test_data",        "测试数据",         50),
+    ("steps",            "测试步骤",         60),
+    ("expected_result",  "预期结果",         60),
+    ("validation_sql",   "验证SQL",          100),
     ("actual_result",    "实际结果",         18),
     ("is_passed",        "是否通过",         10),
     ("estimated_hours",  "预计工时(h)",      11),
@@ -137,6 +137,24 @@ def make_thin_border():
     return Border(left=side, right=side, top=side, bottom=side)
 
 
+def estimate_row_height(case: dict) -> float:
+    """按换行列的实际内容估算行高（最小 55，上限 240），避免长内容被裁切"""
+    width_by_key = {key: width for key, _name, width in COLUMNS}
+    max_lines = 1
+    for key in WRAP_COLS:
+        text = str(case.get(key, "") or "")
+        if not text:
+            continue
+        # Excel 列宽单位为默认字体的半角字符数，中文按 2 个半角宽度折算
+        capacity = max(int(width_by_key.get(key, 20) * 0.95 / 2), 6)
+        col_lines = 0
+        for raw in text.split("\n"):
+            visual_width = sum(2 if ord(ch) > 127 else 1 for ch in raw)
+            col_lines += max(1, -(-visual_width // capacity))
+        max_lines = max(max_lines, col_lines)
+    return min(409, max(55, max_lines * 15 + 10))
+
+
 def write_cases_sheet(ws, cases: list, thin_border):
     """写用例明细 Sheet"""
     header_font = Font(name="微软雅黑", bold=True, color="FFFFFF", size=11)
@@ -177,7 +195,7 @@ def write_cases_sheet(ws, cases: list, thin_border):
             else:
                 cell.alignment = Alignment(horizontal="left", vertical="top")
 
-        ws.row_dimensions[row_idx].height = 55
+        ws.row_dimensions[row_idx].height = estimate_row_height(case)
 
     ws.auto_filter.ref = f"A1:{get_column_letter(len(COLUMNS))}{len(cases) + 1}"
 

@@ -4,16 +4,19 @@
 用法：
     python generate_bug_docs.py reports/bugs/BUG-REQ001-001.yaml
     python generate_bug_docs.py bugs.yaml -o reports/bugs
+    python generate_bug_docs.py testcases/REQ-002-quote_price/bugs -o reports/bugs --merge
+    python generate_bug_docs.py a.yaml b.yaml --merge
 
 输出：
-    {outdir}/{bug_id}.md
-    {outdir}/{bug_id}.xlsx
+    单份模式：{outdir}/{bug_id}.md、{outdir}/{bug_id}.xlsx
+    合并模式：同一需求的缺陷合并为一份 {outdir}/{需求号}-defects.md 与 {需求号}-defects.xlsx
 """
 
 import argparse
 import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import yaml
@@ -106,6 +109,29 @@ def validate(data: dict) -> None:
         raise SystemExit("related_cases 必须是非空列表")
 
 
+def load_record(path: Path) -> dict:
+    """读取并校验单份缺陷记录（YAML/JSON），错误信息带上文件名。"""
+    text = path.read_text(encoding="utf-8")
+    data = (
+        yaml.safe_load(text)
+        if path.suffix.lower() in (".yaml", ".yml")
+        else json.loads(text)
+    )
+    if not isinstance(data, dict):
+        raise SystemExit(f"{path.name}: 缺陷记录根节点必须是映射（键值结构）")
+    try:
+        validate(data)
+    except SystemExit as exc:
+        raise SystemExit(f"{path.name}: {exc}") from exc
+    return data
+
+
+def requirement_id(data: dict) -> str:
+    """从 requirement 字段提取需求号（如 REQ-002），无匹配时回退 BUGS。"""
+    match = re.search(r"[A-Za-z]{2,}-\d+", str(dig(data, "requirement", "")))
+    return match.group(0).upper() if match else "BUGS"
+
+
 def render_markdown(data: dict) -> str:
     cases = "\n".join(
         f"| {c.get('case_id', '')} | {c.get('title', '')} | {c.get('ac', '')} "
@@ -189,13 +215,14 @@ def render_markdown(data: dict) -> str:
 """
 
 
-def render_excel(data: dict, path: Path) -> None:
+def render_excel(bugs: list[dict], path: Path) -> None:
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "缺陷明细"
 
     sheet.append([label for label, _ in EXCEL_COLUMNS])
-    sheet.append([cell_value(data, key) for _, key in EXCEL_COLUMNS])
+    for data in bugs:
+        sheet.append([cell_value(data, key) for _, key in EXCEL_COLUMNS])
 
     for cell in sheet[1]:
         cell.font = Font(name=FONT_NAME, size=FONT_SIZE, bold=True)
@@ -209,24 +236,35 @@ def render_excel(data: dict, path: Path) -> None:
             cell.alignment = wrap
 
     for index, (label, key) in enumerate(EXCEL_COLUMNS, start=1):
-        content = cell_value(data, key)
-        longest = max([len(label), *(len(line) for line in content.splitlines())])
+        longest = max(
+            [len(label)]
+            + [len(line) for data in bugs for line in cell_value(data, key).splitlines()]
+        )
         width = max(sum(2 if CJK.match(ch) else 1 for ch in label) + 2, min(longest + 2, 60))
         sheet.column_dimensions[get_column_letter(index)].width = width
     sheet.row_dimensions[1].height = 24
-    sheet.row_dimensions[2].height = 120
+    for row_number in range(2, sheet.max_row + 1):
+        sheet.row_dimensions[row_number].height = 120
     sheet.freeze_panes = "A2"
 
     case_sheet = workbook.create_sheet("关联用例")
-    case_sheet.append(["case_id", "用例标题", "AC", "优先级", "来源"])
-    for case in data["related_cases"]:
-        case_sheet.append([
-            case.get("case_id", ""),
-            case.get("title", ""),
-            case.get("ac", ""),
-            case.get("priority", ""),
-            case.get("source", ""),
-        ])
+    merged = len(bugs) > 1
+    case_sheet.append(
+        (["缺陷编号"] if merged else []) + ["case_id", "用例标题", "AC", "优先级", "来源"]
+    )
+    for data in bugs:
+        prefix = [data["bug_id"]] if merged else []
+        for case in data["related_cases"]:
+            case_sheet.append(
+                prefix
+                + [
+                    case.get("case_id", ""),
+                    case.get("title", ""),
+                    case.get("ac", ""),
+                    case.get("priority", ""),
+                    case.get("source", ""),
+                ]
+            )
     for cell in case_sheet[1]:
         cell.font = Font(name=FONT_NAME, size=FONT_SIZE, bold=True)
         cell.fill = HEADER_FILL
@@ -235,7 +273,8 @@ def render_excel(data: dict, path: Path) -> None:
         for cell in row:
             cell.font = Font(name=FONT_NAME, size=FONT_SIZE)
             cell.alignment = Alignment(vertical="top", wrap_text=True)
-    for index, width in enumerate([18, 40, 12, 10, 45], start=1):
+    widths = ([14] if merged else []) + [18, 40, 12, 10, 45]
+    for index, width in enumerate(widths, start=1):
         case_sheet.column_dimensions[get_column_letter(index)].width = width
     case_sheet.freeze_panes = "A2"
 
@@ -245,34 +284,99 @@ def render_excel(data: dict, path: Path) -> None:
         raise SystemExit(f"无法写入 {path}：文件正被 Excel 打开，请关闭后重试")
 
 
+def render_merged_markdown(req_id: str, bugs: list[dict]) -> str:
+    """同一需求的缺陷合并成一份 Markdown：一览表 + 逐条完整缺陷单。"""
+
+    def case_ids(data: dict) -> str:
+        seen: list[str] = []
+        for case in data["related_cases"]:
+            cid = case.get("case_id", "")
+            if cid and cid not in seen:
+                seen.append(cid)
+        return "、".join(seen)
+
+    rows = "\n".join(
+        f"| {data['bug_id']} | {data['title']} | {data['severity']} / {data['priority']} "
+        f"| {data.get('status', '新建')} | {dig(data, 'expected.ac')} | {case_ids(data)} |"
+        for data in bugs
+    )
+    sections = "\n---\n\n".join(render_markdown(data) for data in bugs)
+    return f"""# {req_id} 缺陷汇总（共 {len(bugs)} 条）
+
+> 生成时间：{datetime.now():%Y-%m-%d %H:%M}｜同一需求的确认缺陷合并记录于本文件。
+
+## 缺陷一览
+
+| 缺陷编号 | 标题 | 严重度 / 优先级 | 状态 | 关联 AC | 关联用例 |
+|---|---|---|---|---|---|
+{rows}
+
+---
+
+{sections}
+"""
+
+
+def expand_sources(raw: list[str]) -> list[Path]:
+    """把输入参数展开为缺陷文件列表（支持目录与多文件，按文件名排序）。"""
+    suffixes = (".yaml", ".yml", ".json")
+    files: list[Path] = []
+    for item in raw:
+        path = Path(item).expanduser().resolve()
+        if path.is_dir():
+            found = sorted(
+                child
+                for child in path.iterdir()
+                if child.is_file() and child.suffix.lower() in suffixes
+            )
+            if not found:
+                raise SystemExit(f"目录中没有缺陷 YAML/JSON：{path}")
+            files.extend(found)
+        elif path.is_file():
+            files.append(path)
+        else:
+            raise SystemExit(f"找不到缺陷记录：{path}")
+    return files
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="生成缺陷单 Markdown 与 Excel")
-    parser.add_argument("source", help="缺陷 YAML/JSON 文件")
+    parser.add_argument(
+        "source", nargs="+", help="缺陷 YAML/JSON 文件（可传目录或多个文件）"
+    )
     parser.add_argument("-o", "--outdir", help="输出目录，默认与输入同目录")
+    parser.add_argument(
+        "--merge",
+        action="store_true",
+        help="合并模式：同一需求的缺陷合并输出为一份 {需求号}-defects.md/.xlsx",
+    )
     args = parser.parse_args()
 
-    source = Path(args.source).resolve()
-    if not source.is_file():
-        raise SystemExit(f"找不到缺陷记录：{source}")
-
-    text = source.read_text(encoding="utf-8")
-    data = (
-        yaml.safe_load(text)
-        if source.suffix.lower() in (".yaml", ".yml")
-        else json.loads(text)
-    )
-    if not isinstance(data, dict):
-        raise SystemExit("缺陷记录根节点必须是映射（键值结构）")
-
-    validate(data)
-
-    outdir = Path(args.outdir).resolve() if args.outdir else source.parent
+    files = expand_sources(args.source)
+    outdir = Path(args.outdir).resolve() if args.outdir else files[0].parent
     outdir.mkdir(parents=True, exist_ok=True)
+
+    if args.merge:
+        groups: dict[str, list[dict]] = {}
+        for path in files:
+            data = load_record(path)
+            groups.setdefault(requirement_id(data), []).append(data)
+        for req_id, group in groups.items():
+            md_path = outdir / f"{req_id}-defects.md"
+            xlsx_path = outdir / f"{req_id}-defects.xlsx"
+            md_path.write_text(render_merged_markdown(req_id, group), encoding="utf-8")
+            render_excel(group, xlsx_path)
+            print(f"已生成缺陷汇总（{len(group)} 条）：{md_path}")
+            print(f"已生成缺陷汇总表（{len(group)} 条）：{xlsx_path}")
+        return 0
+
+    if len(files) > 1:
+        raise SystemExit("一次只能生成一份缺陷单；多份缺陷请加 --merge 合并输出")
+    data = load_record(files[0])
     md_path = outdir / f"{data['bug_id']}.md"
     xlsx_path = outdir / f"{data['bug_id']}.xlsx"
-
     md_path.write_text(render_markdown(data), encoding="utf-8")
-    render_excel(data, xlsx_path)
+    render_excel([data], xlsx_path)
 
     print(f"已生成缺陷单：{md_path}")
     print(f"已生成缺陷表：{xlsx_path}")

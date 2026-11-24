@@ -182,7 +182,22 @@ python .claude/skills/bug-analysis/scripts/generate_bug_docs.py reports/bugs/BUG
 已生成缺陷表：.../BUG-REQ001-001.xlsx
 ```
 
-只写了 YAML、只输出了 Markdown 正文、或手写了 Excel，都视为未完成。脚本会校验必填字段并同时生成同名 `.md` 与 `.xlsx`。YAML 结构：
+只写了 YAML、只输出了 Markdown 正文、或手写了 Excel，都视为未完成。脚本会校验必填字段并同时生成同名 `.md` 与 `.xlsx`。
+
+**同一需求的缺陷合并输出一份文档**（推送飞书「缺陷明细」时用这种形态，一个需求一个文件，避免列出多个单缺陷链接）：
+
+```bash
+python .claude/skills/bug-analysis/scripts/generate_bug_docs.py testcases/REQ-002-quote_price/bugs -o reports/bugs --merge
+```
+
+- 输入可以是目录（取其中全部 YAML/JSON，按文件名排序）或多个文件。
+- 按需求号分组（从 `requirement` 字段提取，如 `REQ-002`），每个需求输出一份
+  `{需求号}-defects.md`（缺陷一览表 + 逐条完整缺陷单）和 `{需求号}-defects.xlsx`
+  （Sheet1「缺陷明细」一行一个缺陷；Sheet2「关联用例」前置「缺陷编号」列，跨缺陷合并）。
+- 逐条缺陷的 YAML 仍是源文件，保留在 bugs 源目录；reports/bugs 只放按需求合并后的交付文件。
+- 完成标志：`已生成缺陷汇总（N 条）：.../{需求号}-defects.md` 与对应 xlsx 两行输出。
+
+YAML 结构：
 
 ```yaml
 bug_id: BUG-REQ001-001
