@@ -61,10 +61,13 @@ uv run --project $SkillDir python "$SkillDir\scripts\setup_workspace.py" `
   [--testcase "<已有用例Excel>"] `
   [--project_info "<项目资料目录>"] `
   [--business_doc "<业务逻辑文档>"] `
-  [--db_info "<db_config.json路径>"]
+  [--db_info "<db_config.json路径>"] `
+  [--workspace_root "<工作区根目录>"]
 ```
 
 输出工作区路径。若未提供 API 文档（仅有 AC 清单），跳过此步，直接从 Step 4 开始。
+
+> 工作区默认落在**项目侧** `reports/.skill-workspaces/<时间戳>/`，可通过 `--workspace_root` 或环境变量 `SKILL_WORKSPACE_DIR` 覆盖。禁止写回技能目录（技能目录是公共库的只读挂载）。
 
 ### Step 2：确定目标 API
 
@@ -283,6 +286,19 @@ uv run --project $SkillDir python "$SkillDir\scripts\export_excel.py" `
 ```
 
 输出 `<工作区>/output/api_testcases_<时间戳>.xlsx`，包含 4 个 Sheet：
+
+### 产物归档
+
+用例定稿后，把最终产物同步到交付物库对应批次，工作区只作为过程目录：
+
+| 产物 | 归档位置 |
+| --- | --- |
+| Excel 用例清单 | `<交付物库>/<项目>/UR-xxx-yyyyMMdd/测试用例/用例文件/` |
+| `cases_batch_*.json` | 同上 |
+| `boundary_matrix.md`、`constraints.json` | 同上批次的 `研发分析/` |
+| 脚本索引 | 同上批次的 `测试用例/脚本文件/脚本索引.md` |
+
+交付物库路径由用户指定或约定为项目根同级的 `it-nas`；不存在时只保留工作区产物。
 - **用例明细**（30 列，P0 标红、按 test_type 行染色）
 - **覆盖矩阵**（AC → 用例编号 → 状态）
 - **待确认清单**（risk 非"无"的用例，按优先级排序）

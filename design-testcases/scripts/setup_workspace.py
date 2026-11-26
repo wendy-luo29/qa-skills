@@ -12,7 +12,9 @@ from datetime import datetime
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).parent.parent
-WORKSPACES_DIR = SKILL_DIR / "workspaces"
+
+# 工作区默认落在项目侧，避免写回技能目录（技能目录在公共库中只读）
+DEFAULT_WORKSPACE_ROOT = "reports/.skill-workspaces"
 
 # 工作区固定子目录
 SUBDIRS = [
@@ -24,13 +26,19 @@ SUBDIRS = [
     "output",           # 输出目录
 ]
 
-# 默认 DB 配置：优先读取技能目录的 db_config.json，便于用户统一修改
+# 默认 DB 配置：优先读取项目根目录，其次技能目录，便于用户统一修改
 _SKILL_DB_CONFIG_FILE = SKILL_DIR / "db_config.json"
 
+
+def _db_config_candidates() -> list[Path]:
+    return [Path.cwd() / "db_config.json", _SKILL_DB_CONFIG_FILE]
+
+
 def _load_default_db_config() -> dict:
-    if _SKILL_DB_CONFIG_FILE.exists():
-        with open(_SKILL_DB_CONFIG_FILE, encoding="utf-8-sig") as f:
-            return json.load(f)
+    for candidate in _db_config_candidates():
+        if candidate.exists():
+            with open(candidate, encoding="utf-8-sig") as f:
+                return json.load(f)
     # 兜底：返回空配置，提示用户创建 db_config.json
     return {
         "测试mysql": {
@@ -81,10 +89,20 @@ TEMPLATE_HEADERS = {
 }
 
 
-def create_workspace() -> Path:
+def resolve_workspace_root(cli_value: str | None = None) -> Path:
+    """工作区根目录：命令行 > 环境变量 SKILL_WORKSPACE_DIR > 项目侧默认目录。"""
+    if cli_value:
+        return Path(cli_value).expanduser().resolve()
+    env_value = os.environ.get("SKILL_WORKSPACE_DIR")
+    if env_value:
+        return Path(env_value).expanduser().resolve()
+    return (Path.cwd() / DEFAULT_WORKSPACE_ROOT).resolve()
+
+
+def create_workspace(workspace_root: str | None = None) -> Path:
     """创建带时间戳的工作区目录"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    ws = WORKSPACES_DIR / timestamp
+    ws = resolve_workspace_root(workspace_root) / timestamp
     for subdir in SUBDIRS:
         (ws / subdir).mkdir(parents=True, exist_ok=True)
     return ws
@@ -118,10 +136,11 @@ def main():
     parser.add_argument("--project_info", default=None,   help="项目资料目录路径（可选）")
     parser.add_argument("--business_doc", default=None,   help="业务逻辑文档路径（可选）")
     parser.add_argument("--db_info",      default=None,   help="数据库配置 JSON 文件路径（可选）")
+    parser.add_argument("--workspace_root", default=None, help="工作区根目录（默认 reports/.skill-workspaces）")
     args = parser.parse_args()
 
     # 1. 创建工作区
-    ws = create_workspace()
+    ws = create_workspace(args.workspace_root)
     print(f"工作区已创建: {ws}")
 
     copied = {}
