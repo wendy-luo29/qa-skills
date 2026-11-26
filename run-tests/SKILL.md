@@ -70,7 +70,7 @@ description: 执行测试脚本并分析结果。当用户说"跑一下测试 / 
 ```bash
 python -m pytest tests -q --junitxml=reports/junit.xml \
   --html=reports/report.html --self-contained-html
-python scripts/send_report.py
+python scripts/export_test_report.py --junit reports/junit.xml
 ```
 
 - 本步骤只负责群摘要；需要用例明细、失败证据、AC 覆盖率时转 `test-report` 生成完整报告。

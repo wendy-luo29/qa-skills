@@ -107,7 +107,7 @@ P0 覆盖率：100%（6/6）｜ P1 覆盖率：80%（8/10）
 生成报告后立即推送，不能只把 Markdown 输出到对话里：
 
 ```bash
-python scripts/send_report.py
+python scripts/export_test_report.py --junit reports/junit.xml
 ```
 
 - 默认推送 `reports/report.html`（--report 可覆盖）与 `reports/bugs/*.xlsx`（--bug-xlsx 可指定单个）。
