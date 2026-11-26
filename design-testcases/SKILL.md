@@ -19,7 +19,7 @@ description: 测试用例设计（合并版）。当需求已拆成原子能力�
 |------|------|------|
 | 原子能力清单（AC） | 二选一 | `AC-{编号}` 列表 + 验收口径（来自 split-requirements） |
 | OpenAPI 文档 | 二选一 | OpenAPI/Swagger JSON 文件路径 |
-| 知识库路径 | 推荐 | 默认 `<项目根>/knowledge/`，用于读取规则、踩坑、影响索引、已有用例 |
+| 知识库路径 | 推荐 | 默认 `knowledge/<ProjectName>/`（知识库 submodule 的知识库根），用于读取规则、踩坑、影响索引、已有用例 |
 | 已有测试用例 | 可选 | Excel 格式（`testcases/*.yaml/.xlsx`），用于对比覆盖缺口和复用 |
 | 项目资料 | 可选 | 需求文档、业务逻辑文档 |
 | 数据库连接 | 可选 | db_config.json，默认从技能目录读取 |
@@ -105,24 +105,25 @@ uv run --project $SkillDir python "$SkillDir\scripts\query_db_schema.py" `
 
 **在写任何一条用例之前**，先按顺序执行以下读取。找不到知识库时（新项目/无历史），跳过并记录"知识库未建立"。
 
-#### 4.1 读业务规则 — `knowledge/rules/<module>/<feature>.md`
-- 从项目根 `knowledge/INDEX.md` 导航到当前模块的规则文档
+#### 4.1 读业务规则 — `<知识库根>/Common/业务规则/<module>/<feature>.md`
+- 知识库以 submodule 挂在代码仓 `knowledge/`，知识库根 = `knowledge/<ProjectName>/`
+- 从 `<知识库根>/Common/知识库索引.md` 导航到当前模块的规则文档
 - 规则文档第一行必须有版本号和 confirmed 日期（如 `v2.1 confirmed by 业务方 2026-11-15`）
 - **将规则文档里的 confirmed 规则当作设计用例的"第一依据"**，OpenAPI 文档有歧义时以规则文档为准
 - 规则文档里的【待确认】项 → 生成的用例里也必须标【待确认】（risk 字段）
 
-#### 4.2 读历史踩坑 — `knowledge/gotchas/`
+#### 4.2 读历史踩坑 — `<知识库根>/Common/踩坑记录/`
 - 浏览所有 gotcha 条目，筛选与当前模块/功能相关的（标题或正文含模块关键词）
 - **每一条踩坑必须在设计用例时有体现**——要么已有对应用例（复用），要么新增用例覆盖
 - 输出时用 `risk` 字段关联踩坑编号：`risk: "踩坑 gotcha_001 已覆盖"`
 
-#### 4.3 读影响索引 — `knowledge/impact-index.yaml`
+#### 4.3 读影响索引 — `<知识库根>/impact-index.yaml`
 - 找到当前变更对应的 change 条目（按 `module` + `feature` 匹配）
 - 查看 `regression_targets` 列出的 case_id 清单
 - **这些 case_id 对应的已有用例是必跑回归的**，标记 `is_regression: "是"`，不重新设计（除非规则已变）
 - 查看 `gotchas` 和 `knowledge_docs` 引用的相关文档
 
-#### 4.4 读变更历史 — `knowledge/changelog/`
+#### 4.4 读变更历史 — `<知识库根>/Common/变更记录/`
 - 读取当前模块最近 3 条变更记录
 - 识别"规则变了"的部分 → 已有用例需要更新；识别"新增功能"的部分 → 需要新增用例
 
@@ -143,7 +144,7 @@ uv run --project $SkillDir python "$SkillDir\scripts\query_db_schema.py" `
 ## 本次设计的知识库上下文
 
 ### 已读规则
-- knowledge/rules/lsp_backend/address_validation.md (v2.1 confirmed 2026-11-15)
+- knowledge/Project-LspQuote/Common/业务规则/lsp_backend/address_validation.md (v2.1 confirmed 2026-11-15)
 
 ### 相关踩坑（必须覆盖）
 - gotcha_001: PO Box 正则大小写不敏感 → 已有 TC-ADDR-024 覆盖（xfail 待解）
@@ -289,16 +290,16 @@ uv run --project $SkillDir python "$SkillDir\scripts\export_excel.py" `
 
 ### 产物归档
 
-用例定稿后，把最终产物同步到交付物库对应批次，工作区只作为过程目录：
+用例定稿后，把最终产物同步到知识库对应批次，工作区只作为过程目录：
 
 | 产物 | 归档位置 |
 | --- | --- |
-| Excel 用例清单 | `<交付物库>/<项目>/UR-xxx-yyyyMMdd/测试用例/用例文件/` |
+| Excel 用例清单 | `<知识库根>/UR-xxx-yyyyMMdd/测试用例/用例文件/` |
 | `cases_batch_*.json` | 同上 |
 | `boundary_matrix.md`、`constraints.json` | 同上批次的 `研发分析/` |
 | 脚本索引 | 同上批次的 `测试用例/脚本文件/脚本索引.md` |
 
-交付物库路径由用户指定或约定为项目根同级的 `it-nas`；不存在时只保留工作区产物。
+知识库路径由用户指定，默认取代码仓 `knowledge/<ProjectName>/`（知识库 submodule）；不存在时只保留工作区产物。
 - **用例明细**（30 列，P0 标红、按 test_type 行染色）
 - **覆盖矩阵**（AC → 用例编号 → 状态）
 - **待确认清单**（risk 非"无"的用例，按优先级排序）
@@ -366,7 +367,7 @@ uv run --project $SkillDir python "$SkillDir\scripts\export_excel.py" `
 
 ## 门禁
 - **评审溯源门禁**：AC 清单缺少 `review_record` / `review_gate`，或门禁值为 `reject` → 不得设计或导出用例，退回 `split-requirements` / `review-requirements`。
-- **知识库门禁**：如果 `knowledge/INDEX.md` 存在，Step 4 必须执行且输出摘要；直接跳到 Step 5-8 视为违规。
+- **知识库门禁**：如果 `<知识库根>/Common/知识库索引.md` 存在，Step 4 必须执行且输出摘要；直接跳到 Step 5-8 视为违规。
 - **复用门禁**：已有用例未做 Step 4.5 处置（复用/更新/废弃/新增）就直接输出 → 退回补做。
 - **影响索引门禁**：`impact-index.yaml` 里标记的 `regression_targets` 必须出现在最终清单里（复用或更新都行，不能消失）。
 - **边界矩阵门禁**：`output/boundary_matrix.md` 未生成，或任一约束的有效数据点 < 2，或存在「上限+10」类占位值 → 不得导出。约束覆盖率 100% 是硬要求（因文档缺失登记了 Q/M 的约束可标「待定」，但必须在矩阵中显式列出，不得静默跳过），用例类型百分比（正向/负向/边界/安全）只作提示，不作门禁。
@@ -398,9 +399,11 @@ uv run --project $SkillDir python "$SkillDir\scripts\export_excel.py" `
 - `scripts/query_db_schema.py` — 数据库表结构查询
 
 ### 知识库参考（★ Step 4 必读）
-- `<项目根>/knowledge/INDEX.md` — 知识库入口，按模块→承运商→版本导航
-- `<项目根>/knowledge/impact-index.yaml` — 测试影响索引（机读），变更单元 → 回归目标用例
-- `<项目根>/knowledge/rules/<module>/<feature>.md` — 业务规则 confirmed 文档
-- `<项目根>/knowledge/gotchas/gotcha_NNN_<主题>.md` — 历史踩坑，标题里的 NNN 是编号
-- `<项目根>/knowledge/changelog/YYYY-MM-DD_<变更描述>.md` — 变更历史
+- `<知识库根>/Common/知识库索引.md` — 知识库入口，按模块→承运商→版本导航
+- `<知识库根>/impact-index.yaml` — 测试影响索引（机读），变更单元 → 回归目标用例
+- `<知识库根>/Common/业务规则/<module>/<feature>.md` — 业务规则 confirmed 文档
+- `<知识库根>/Common/踩坑记录/gotcha_NNN_<主题>.md` — 历史踩坑，标题里的 NNN 是编号
+- `<知识库根>/Common/变更记录/YYYY-MM-DD_<变更描述>.md` — 变更历史
+
+> 知识库根 = 代码仓 `knowledge/<ProjectName>/`（知识库以 submodule 挂载）；在知识库仓内直接使用 `<ProjectName>/`。
 - `<项目根>/testcases/*.yaml/.xlsx` — 已有用例，Step 4.5 对比处置

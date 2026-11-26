@@ -127,22 +127,22 @@ next_action: 回退 requirement-enrichment 补齐 R-001 ~ R-004
 
 ## 知识库写回（rules 唯一合法入口）
 
-评审记录本身属于证据层，写入 `requirements/reviews/REQ-{NNN}-review.md`，不进 `knowledge/`。
+评审记录本身属于证据层，写入 `requirements/reviews/REQ-{NNN}-review.md` 或知识库 `UR-*/研发分析/`，不进结论层。
 
-只有门禁结论为【有条件通过】且【高】级问题全部闭环时，才允许写 `knowledge/rules/<module>/<feature>.md`。
+只有门禁结论为【有条件通过】且【高】级问题全部闭环时，才允许写 `<知识库根>/Common/业务规则/<module>/<feature>.md`（知识库根 = 代码仓 `knowledge/<ProjectName>/`）。
 
 - front-matter 必填：`module` / `feature` / `version` / `status` / `confirmed_by` / `confirmed_date` / `source_requirement`
-  - `source_requirement` 指向 `requirements/docs/` 下的需求快照，保证规则可追溯
+  - `source_requirement` 指向需求证据快照（知识库 `UR-*/` 或代码仓 `requirements/docs/`），保证规则可追溯
 - 只写结论，不抄需求原文；【待确认】项不得写成 confirmed 规则
 - 同一 `(module, feature)` 只允许一个 `status: active`；升版本时旧文档改 `status: superseded`
-- 规则变更同时新增 `knowledge/changelog/YYYY-MM-DD_*.md`（front-matter 声明 `change_ids`），并在同一提交内更新 `knowledge/impact-index.yaml`
+- 规则变更同时新增 `<知识库根>/Common/变更记录/YYYY-MM-DD_*.md`（front-matter 声明 `change_ids`），并在同一提交内更新 `<知识库根>/impact-index.yaml`
 - 写完执行 `python scripts/knowledge_guard.py`，存在 ERROR 时不得移交
 
 ## 门禁
 - 评审记录未落盘、缺 front-matter 或 `gate` 值非法 → 视为未评审，禁止进入 `split-requirements`。
 - 存在未解决的"高"级问题 → **[拒绝 Reject]**，禁止进入用例设计，请产品/后端补全文档。
 - 不存在"高"级问题 → **[有条件通过]**，产品/后端确认"中"级问题后进入 `split-requirements`。
-- 评审未通过时写入 `knowledge/rules/` → 视为违规，必须回滚。
+- 评审未通过时写入 `<知识库根>/Common/业务规则/` → 视为违规，必须回滚。
 - 写回后 `knowledge_guard.py` 存在 ERROR → 不进入 `split-requirements`。
 
 ## 输出禁忌
@@ -151,4 +151,4 @@ next_action: 回退 requirement-enrichment 补齐 R-001 ~ R-004
 - 禁止不区分严重度、不给责任方。
 - 禁止跳过门禁结论。
 - 禁止只在对话里输出评审结论而不生成 `requirements/reviews/REQ-{NNN}-review.md`。
-- 禁止把未确认的规则写进 `knowledge/rules/`，或把需求原文整篇抄进结论层。
+- 禁止把未确认的规则写进 `<知识库根>/Common/业务规则/`，或把需求原文整篇抄进结论层。

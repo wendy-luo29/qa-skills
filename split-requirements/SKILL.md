@@ -141,7 +141,7 @@ Then  {可观察结果 / 断言}
 | 写什么 | 路径 | 要求 |
 |---|---|---|
 | AC 清单 | `requirements/decomposition/{REQ-ID}-AC-list.yaml` | AC 编号不复用、不跳号，含优先级 / 可自动化 / 依赖；必须带 `review_record` / `review_date` / `review_gate` |
-| 模块注册表 | `knowledge/impact-index.yaml` → `module_registry` | 新模块 / 新功能登记 `config_path` / `test_path` / `current_version` |
+| 模块注册表 | `<知识库根>/impact-index.yaml` → `module_registry` | 新模块 / 新功能登记 `config_path` / `test_path` / `current_version` |
 | 需求 → AC 追溯 | 同上，AC 条目带 `requirement_id: REQ-{NNN}` | 供 `design-testcases` 填入用例的 `requirement_id` 列 |
 
 - 禁止在拆分阶段新增 `changes[]` 条目——change 由规则变更产生，不是拆分产生。
