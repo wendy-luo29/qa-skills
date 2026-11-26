@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+
+# 运行时产物
+**/output/
+**/workspaces/
+**/db_config.json

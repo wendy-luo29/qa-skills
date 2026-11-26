@@ -93,14 +93,14 @@ description: 缺陷分析与缺陷单生成。当用户说"分析这个 bug / �
 
 ## 1. 环境
 - 环境：{测试/预发/生产}
-- Base URL：http://192.168.1.71:13109
+- Base URL：{base_url}（从 config/env.yaml 读取）
 - 部署版本：{version}
 - 操作系统 / Python：{可选}
 
 ## 2. 地址
 - 方法：POST
 - 路径：/address/validate
-- 完整 URL：http://192.168.1.71:13109/address/validate
+- 完整 URL：{base_url}/address/validate
 
 ## 3. 请求传参
 ```json
@@ -212,7 +212,7 @@ reported_at: "2026-11-17 15:30"
 reproduce_command: 'python -m pytest "tests/api/test_address_validate.py::test_null_or_empty_key_fields" -q'
 environment:
   name: 测试
-  base_url: "http://192.168.1.71:13109"
+  base_url: "{base_url}"
   deploy_version: "v2.1.0"
 api:
   method: POST

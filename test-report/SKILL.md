@@ -111,7 +111,7 @@ python scripts/send_report.py
 
 - 默认推送 `reports/report.html`（--report 可覆盖）与 `reports/bugs/*.xlsx`（--bug-xlsx 可指定单个）。
 - 缺陷 Excel 必须先由 `bug-analysis` 生成，再执行推送；目录为空时消息会标注"无"。
-- 本地凭证从 `D:\ai-test-framework\.env` 读取（已 gitignore），CI 从 `FEISHU_WEBHOOK` Secret 读取。
+- 本地凭证从项目根目录的 `.env` 读取（已 gitignore），CI 从 `FEISHU_WEBHOOK` Secret 读取。
 - 群自定义机器人 webhook 不支持附件，消息以 post 富文本推送，报告与缺陷 Excel 均为可点击超链接。
 - 链接优先用 `--report-url`（CI artifact），本地回退 `file:///` 绝对路径，仅本机可打开；需要全员可访问时改用 Open API 应用凭证上传附件。
 - 脚本输出"已发送飞书通知"才算完成；只生成了文件、没执行推送，视为未完成。

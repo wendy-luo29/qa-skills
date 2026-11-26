@@ -43,8 +43,8 @@ description: 测试用例设计（合并版）。当需求已拆成原子能力�
 ### Step 0：环境准备（uv）
 
 ```powershell
-# Windows PowerShell
-$SkillDir = "d:\ai-test-framework\.claude\skills\design-testcases"
+# Windows PowerShell：在项目根目录执行，技能目录跟随 .claude/skills 布局
+$SkillDir = Join-Path (Get-Location) ".claude\skills\design-testcases"
 if (!(Get-Command uv -ErrorAction SilentlyContinue)) {
     powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 }
